@@ -12,18 +12,22 @@ from skimage import exposure
 from pytesseract import image_to_string
 import Crop
 
-def extractor(imgPath)
-	Im = Image.open(imgPath)  # your image
+def extractor(imgPath,imgName):
+	Im = Image.open(imgPath+imgName)  # your image
 	width = Im.size[0]  # define W and H
 	height = Im.size[1]
 	Im = Im.crop((width * 0.78, height * 0.83, width * 0.92, height * 0.94))  # By Data Stamp Location in %
-	NewIm = Im
-	photo = Im.load()
-	NewPhoto = NewIm.load()
-	# photo = photo.convert('RGB')
+	NewIm = Im  #duplicate
+	photo = colorFilter(Im,NewIm)
+	return convert_BMP(smart_Crop(photo, NewIm),imgPath,imgName)
 
-	width = Im.size[0]  # define W and H
-	height = Im.size[1]
+
+def colorFilter(Image,NewIm):
+	width = Image.size[0]  # define W and H
+	height = Image.size[1]
+	photo = Image.load()
+	# photo = photo.convert('RGB')
+	NewPhoto = NewIm.load()
 
 	for y in range(0, height):  # each pixel has coordinates
 		row = ""
@@ -45,15 +49,15 @@ def extractor(imgPath)
 
 			else:
 				NewPhoto[x, y] = (255, 255, 255)
+	return NewPhoto
 
-	###################Crop###################
-
-	photo = NewIm.load()
+def smart_Crop(photo,NewIm):
 	width = NewIm.size[0]  # define W and H
 	height = NewIm.size[1]
 	cropSizeUp = 0
 	cropSizeDown = 0
 	flag = True
+
 	for y in range(0, height):  # each pixel has coordinates
 		for x in range(0, width):
 			if (photo[x, y] == (0, 0, 0)):
@@ -74,10 +78,11 @@ def extractor(imgPath)
 		else:
 			break
 
-	NewIm = NewIm.crop((0, cropSizeUp - 12, width, height - cropSizeDown + 12))  # By Data Stamp Location in %
-	NewIm.save('test.jpg')
 
-	#####################CONVERT 2 BMP################################
+	return NewIm.crop((0, cropSizeUp - 12, width, height - cropSizeDown + 12))  # By Data Stamp Location in %
+	#NewIm.save('test.jpg')
+
+def convert_BMP(NewIm,imgPath,imgName):
 	ary = np.array(NewIm)
 
 	# Split the three channels
@@ -90,13 +95,14 @@ def extractor(imgPath)
 	bitmap = np.array(bitmap).reshape([ary.shape[0], ary.shape[1]])
 	bitmap = np.dot((bitmap > 128).astype(float), 255)
 	NewIm = Image.fromarray(bitmap.astype(np.uint8))
-	NewIm.save('Out.bmp')
+	img_Output_location = imgPath+imgName.replace('.jpg','.bmp')
+	NewIm.save(img_Output_location)
 
-	img = cv2.resize(cv2.imread('Out.bmp'), (660, 300))
+	img = cv2.resize(cv2.imread(img_Output_location), (660, 300))
 	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-	return remove_noise(gray, 1)
+	return remove_noise(gray, 1,img_Output_location)
 
-def remove_noise(gray, num):
+def remove_noise(gray, num,imgPath):
 	Y, X = gray.shape
 	nearest_neigbours = [[
 		np.argmax(
@@ -104,26 +110,8 @@ def remove_noise(gray, num):
 				gray[max(i - num, 0):min(i + num, Y), max(j - num, 0):min(j + num, X)].ravel()))
 		for j in range(X)] for i in range(Y)]
 	result = np.array(nearest_neigbours, dtype=np.uint8)
-	cv2.imwrite('Out1.bmp', result)
+	cv2.imwrite(imgPath, result)
 	return result
-
-
-DIGITS_LOOKUP = {
-	(1, 1, 1, 1, 1, 1, 0): 0,
-	(1, 1, 0, 0, 0, 0, 0): 1,
-	(1, 0, 1, 1, 0, 1, 1): 2,
-	(1, 1, 1, 0, 0, 1, 1): 3,
-	(1, 1, 0, 0, 1, 0, 1): 4,
-	(0, 1, 1, 0, 1, 1, 1): 5,
-	(0, 1, 1, 1, 1, 1, 1): 6,
-	(1, 1, 0, 0, 0, 1, 0): 7,
-	(1, 1, 1, 1, 1, 1, 1): 8,
-	(1, 1, 1, 0, 1, 1, 1): 9,
-	(0, 0, 0, 0, 0, 1, 1): '-'
-}
-H_W_Ratio = 3.87
-THRESHOLD = 10
-arc_tan_theta = 6.0  # 数码管倾斜角度
 
 
 def load_image(path, show=False):
@@ -143,7 +131,6 @@ def load_image(path, show=False):
 
 
 def preprocess(img, threshold, show=False, kernel_size=(5, 5)):
-	# 直方图局部均衡化
 	clahe = cv2.createCLAHE(clipLimit=2, tileGridSize=(6, 6))
 	img = clahe.apply(img)
 	# 自适应阈值二值化
@@ -358,18 +345,45 @@ def recognize_digits_line_method(digits_positions, output_img, input_img):
 	return digits
 
 
+DIGITS_LOOKUP = {
+	(1, 1, 1, 1, 1, 1, 0): 0,
+	(1, 1, 0, 0, 0, 0, 0): 1,
+	(1, 0, 1, 1, 0, 1, 1): 2,
+	(1, 1, 1, 0, 0, 1, 1): 3,
+	(1, 1, 0, 0, 1, 0, 1): 4,
+	(0, 1, 1, 0, 1, 1, 1): 5,
+	(0, 1, 1, 1, 1, 1, 1): 6,
+	(1, 1, 0, 0, 0, 1, 0): 7,
+	(1, 1, 1, 1, 1, 1, 1): 8,
+	(1, 1, 1, 0, 1, 1, 1): 9,
+	(0, 0, 0, 0, 0, 1, 1): '-'
+}
+H_W_Ratio = 3.87
+THRESHOLD = 10
+arc_tan_theta = 6.0
+
 def main():
 	# args = parser.parse_args()
-	blurred, gray_img = load_image('Out1.bmp', show=False)
-	output = blurred
-	dst = preprocess(blurred, THRESHOLD, show=False)
-	digits_positions = find_digits_positions(dst)
-	digits = recognize_digits_line_method(digits_positions, output, dst)
-	# cv2.imshow('output', output)
-	# cv2.waitKey()
-	# cv2.destroyAllWindows()
-	print(digits)
+	pic_list = os.listdir(r"C:\Users\BOAZ\Pictures\FastFoto\test")
+	for pic in pic_list:
+		if "a.jpg" not in pic:
+			continue
+		print("working on: "+pic)
+		try:
+			extractor(r"C:\Users\BOAZ\Pictures\FastFoto\test\\",pic)
 
+			blurred, gray_img = load_image(r"C:\Users\BOAZ\Pictures\FastFoto\test\\"+pic.replace('.jpg','.bmp'), show=False)
+			output = blurred
+			dst = preprocess(blurred, THRESHOLD, show=False)
+			digits_positions = find_digits_positions(dst)
+			digits = recognize_digits_line_method(digits_positions, output, dst)
+			# cv2.imshow('output', output)
+			# cv2.waitKey()
+			# cv2.destroyAllWindows()
+			print("extracted date: "+str(digits))
+		except:
+			print("Error!")
+			continue
 
 if __name__ == '__main__':
 	main()
