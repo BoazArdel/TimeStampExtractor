@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "timestamp-extractor"
+version = "2.0.0"
+description = "Extract red date stamps from scanned photos and write them to EXIF DateTimeOriginal."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Boaz Ardel" }]
+license = { text = "MIT" }
+keywords = ["scan", "photo", "exif", "ocr", "timestamp", "date-stamp"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "opencv-python>=4.9",
+    "numpy>=1.26",
+    "Pillow>=10.0",
+    "pytesseract>=0.3.10",
+    "piexif>=1.1.3",
+    "python-dotenv>=1.0",
+    "tqdm>=4.66",
+    "anthropic>=0.39",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+timestamp-extractor = "timestamp_extractor.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
